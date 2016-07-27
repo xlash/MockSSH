@@ -9,12 +9,15 @@ __author__ = 'Nicolas Couture'
 __maintainer__ = 'Nicolas Couture'
 __email__ = 'nicolas.couture@gmail.com'
 __copyright__ = 'Copyright 2013-2014, Nicolas Couture'
-__version__ = '1.4.2'
+__version__ = '1.4.2.1'
+__history__ = '2016-07-27 : Replace print with logger'
+
 
 
 import sys
 import os
 import shlex
+import logging
 
 from twisted.cred import portal, checkers
 from twisted.conch import (avatar, recvline, interfaces as conchinterfaces)
@@ -36,6 +39,8 @@ __all__ = (
     "stopThreadedServer"
 )
 
+logging.basicConfig(format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+logger = logging.getLogger(__name__)
 
 class SSHServerError(Exception):
     """Raised when an SSH server error is encountered"""
@@ -77,12 +82,12 @@ class SSHCommand(object):
         self.protocol.cmdstack[-1].resume()
 
     def ctrl_c(self):
-        print 'Received CTRL-C, exiting..'
+        logger.info('Received CTRL-C, exiting..')
         self.writeln('^C')
         self.exit()
 
     def lineReceived(self, line):
-        print 'INPUT: %s' % line
+        logger.info('INPUT: %s' % line)
 
     def resume(self):
         pass
@@ -156,7 +161,7 @@ class SSHShell(object):
         self.cmdpending = []
 
     def lineReceived(self, line):
-        print 'CMD: %s' % line
+        logger.info('CMD: %s' % line)
         for i in [x.strip() for x in line.strip().split(';')]:
             if not len(i):
                 continue
@@ -205,10 +210,10 @@ class SSHShell(object):
 
         cmdclass = self.protocol.getCommand(cmd)
         if cmdclass:
-            print 'Command found: %s' % (line,)
+            logger.info('Command found: %s' % (line,))
             self.protocol.call_command(cmdclass, *rargs)
         else:
-            print 'Command not found: %s' % (line,)
+            logger.info('Command not found: %s' % (line,))
             if len(line):
                 self.protocol.writeln('MockSSH: %s: command not found' % cmd)
                 runOrPrompt()
@@ -360,10 +365,10 @@ class SSHTransport(transport.SSHServerTransport):
     hadVersion = False
 
     def connectionMade(self):
-        print 'New connection: %s:%s (%s:%s) [session: %d]' % \
+        logger.info('New connection: %s:%s (%s:%s) [session: %d]' % \
             (self.transport.getPeer().host, self.transport.getPeer().port,
              self.transport.getHost().host, self.transport.getHost().port,
-             self.transport.sessionno)
+             self.transport.sessionno))
         self.interactors = []
         self.ttylog_open = False
         transport.SSHServerTransport.connectionMade(self)
@@ -378,7 +383,7 @@ class SSHTransport(transport.SSHServerTransport):
         transport.SSHServerTransport.dataReceived(self, data)
 
     def ssh_KEXINIT(self, packet):
-        print 'Remote SSH version: %s' % (self.otherVersionString,)
+        logger.info('Remote SSH version: %s' % (self.otherVersionString,))
         return transport.SSHServerTransport.ssh_KEXINIT(self, packet)
 
     # this seems to be the only reliable place of catching lost connection
@@ -427,7 +432,7 @@ class command_exit(SSHCommand):
 # Functions
 def getRSAKeys(keypath="."):
     if not os.path.exists(keypath):
-        print "Could not find specified keypath (%s)" % keypath
+        logger.info("Could not find specified keypath (%s)" % (keypath))
         sys.exit(1)
 
     pubkey = os.path.join(keypath, "public.key")

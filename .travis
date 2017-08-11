@@ -8,4 +8,5 @@ sudo: false
 # command to install dependencies
 install: "python setup.py install"
 # command to run tests
-script: python tests/test_mock_F5.py
+script:
+  - "python tests/test_mock_F5.py"
